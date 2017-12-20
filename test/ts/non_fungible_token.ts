@@ -551,7 +551,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                     res = await web3.eth.getTransactionReceipt(txHash);
                 });
 
-                it("should NOT emit approval event", async () => {
+                it("should NOT emit delegation event", async () => {
                     expect(res.logs.length).to.equal(0);
                 });
 
@@ -775,7 +775,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                 });
             });
 
-            describe("...to null address", () => {
+            describe("to null address", () => {
                 it("should throw", async () => {
                     await expect(mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_1, NULL_ADDRESS,
                         TOKEN_ID_1, { from: TOKEN_OWNER_2 }))
@@ -783,7 +783,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                 });
             });
 
-            describe("...from owner to other user", () => {
+            describe("from owner to other user", () => {
                 let res: Web3.TransactionReceipt;
                 let delegationLog: ABIDecoder.DecodedLog;
                 let transferLog: ABIDecoder.DecodedLog;
