@@ -25,10 +25,19 @@ contract NonFungibleToken is DetailedERC721 {
     uint public numTokensTotal;
 
     mapping(uint => address) internal tokenIdToOwner;
+    // Unlike ERC20, a token in this implementation can only have one approved address
+    // at one time. ERC721 specifies this, but perhaps we should allow tokens to have
+    // multiple approved addresses?
     mapping(uint => address) internal tokenIdToApprovedAddress;
     mapping(uint => string) internal tokenIdToMetadata;
     mapping(address => uint[]) internal ownerToTokensOwned;
     mapping(uint => uint) internal tokenIdToOwnerArrayIndex;
+    // To implement approveAll via Option 2, we need a mapping representing
+    // 'owner' => '(array) addresses who are approved to transact all this owner's tokens'
+    //
+    // This name is quite long -- perhaps it would be useful to define a word to replace
+    // an 'allTokensApprovedAddress'. 'agent', 'manager', 'executor'?
+    mapping(address => address) internal ownerToAllTokensApprovedAddress;
 
     event Transfer(
         address indexed _from,
@@ -40,6 +49,11 @@ contract NonFungibleToken is DetailedERC721 {
         address indexed _owner,
         address indexed _approved,
         uint256 _tokenId
+    );
+
+    event Approval(
+        address indexed _owner,
+        address indexed _approved
     );
 
     modifier onlyExtantToken(uint _tokenId) {
@@ -109,11 +123,28 @@ contract NonFungibleToken is DetailedERC721 {
         }
     }
 
+    /* 
+    * Express approval for a third-party to transact with any of our NFTs.
+    *
+    */
+    function approveAll(address _to)
+        public
+    {
+        require(msg.sender != _to);
+
+        if (ownerToAllTokensApprovedAddress[msg.sender] != address(0) ||
+                _to != address(0)) {
+            ownerToAllTokensApprovedAddress[msg.sender] = _to;
+            Approval(msg.sender, _to);
+        }
+    }
+
     function transferFrom(address _from, address _to, uint _tokenId)
         public
         onlyExtantToken(_tokenId)
     {
-        require(tokenIdToApprovedAddress[_tokenId] == msg.sender);
+        require(tokenIdToApprovedAddress[_tokenId] == msg.sender ||
+            ownerToAllTokensApprovedAddress[_from] == msg.sender);
         require(tokenIdToOwner[_tokenId] == _from);
 
         _transfer(_from, _to, _tokenId);
@@ -157,7 +188,10 @@ contract NonFungibleToken is DetailedERC721 {
         view
         returns (address _approved)
     {
-        return tokenIdToApprovedAddress[_tokenId];
+        // Is this condition correctly constructed?
+        if (tokenIdToApprovedAddress[_tokenId] != address(0)) {
+            return tokenIdToApprovedAddress[_tokenId];
+        }
     }
 
     function _transfer(address _from, address _to, uint _tokenId)
