@@ -34,6 +34,18 @@ export function LogApproval(
     };
 }
 
+export function LogDelegation(
+    contract: Address,
+    owner: Address,
+    delegated: Address,
+): ABIDecoder.DecodedLog {
+    return {
+        address: contract,
+        events: _getParams([["_owner", owner], ["_delegated", delegated]]),
+        name: "Delegation",
+    };
+}
+
 
 function _getParams(args: [string, any][]): ABIDecoder.DecodedMethodParam[] {
     return _.map(args, (param: [string, any]): ABIDecoder.DecodedMethodParam => {

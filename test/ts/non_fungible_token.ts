@@ -7,7 +7,7 @@ import {MintableNonFungibleTokenContract} from "../../types/mintable_non_fungibl
 import {BigNumberSetup} from "./utils/bignumber_setup.js";
 import {chaiSetup} from "./utils/chai_setup.js";
 import {INVALID_OPCODE, REVERT_ERROR} from "./utils/constants";
-import {LogApproval, LogTransfer} from "./utils/logs";
+import {LogApproval, LogTransfer, LogDelegation} from "./utils/logs";
 
 // Set up Chai
 chaiSetup.configure();
@@ -530,10 +530,136 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
         });
     });
 
+    describe('#delegate()', () => {
+        before(deployAndInitNft);
+
+        describe("user delegates himself", () => {
+            it("should throw", async () => {
+                expect(mintableNft.delegate.sendTransactionAsync(
+                    TOKEN_OWNER_1, { from: TOKEN_OWNER_1 }))
+                    .to.eventually.be.rejectedWith(REVERT_ERROR);
+            });
+        });
+
+        describe("user owns token", () => {
+            describe("user clears unset delegate", () => {
+                let res: Web3.TransactionReceipt;
+
+                before(async () => {
+                    const txHash = await mintableNft.delegate.sendTransactionAsync(
+                        NULL_ADDRESS, { from: TOKEN_OWNER_1 });
+                    res = await web3.eth.getTransactionReceipt(txHash);
+                });
+
+                it("should NOT emit approval event", async () => {
+                    expect(res.logs.length).to.equal(0);
+                });
+
+                it("should maintain cleared delegate", async () => {
+                    await expect(mintableNft.getDelegated.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.equal(NULL_ADDRESS);
+                });
+            });
+
+            describe("user sets new delegate", () => {
+                let res: Web3.TransactionReceipt;
+
+                before(async () => {
+                    const txHash = await mintableNft.delegate.sendTransactionAsync(TOKEN_OWNER_2,
+                        { from: TOKEN_OWNER_1 });
+
+                    res = await web3.eth.getTransactionReceipt(txHash);
+                });
+
+                it("should return newly delegated user as delegated", async () => {
+                    await expect(mintableNft.getDelegated.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.equal(TOKEN_OWNER_2);
+                });
+
+                it("should emit delegation log", () => {
+                    const [delegationLog] = ABIDecoder.decodeLogs(res.logs);
+                    const logExpected =
+                        LogDelegation(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_2);
+
+                    expect(delegationLog).to.deep.equal(logExpected);
+                })
+            });
+
+            describe("user changes delegated", () => {
+                let res: Web3.TransactionReceipt;
+
+                before(async () => {
+                    const txHash = await mintableNft.delegate.sendTransactionAsync(TOKEN_OWNER_3,
+                        { from: TOKEN_OWNER_1 });
+                    res = await web3.eth.getTransactionReceipt(txHash);
+                });
+
+                it("should return newly delegated user as delegated", async () => {
+                    await expect(mintableNft.getDelegated.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.equal(TOKEN_OWNER_3);
+                });
+
+                it("should emit delegation log", () => {
+                    const [delegationLog] = ABIDecoder.decodeLogs(res.logs);
+                    const logExpected =
+                        LogDelegation(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3);
+
+                    expect(delegationLog).to.deep.equal(logExpected);
+                })
+            });
+
+            describe("user reaffirms delegation", () => {
+                let res: Web3.TransactionReceipt;
+
+                before(async () => {
+                    const txHash = await mintableNft.delegate.sendTransactionAsync(TOKEN_OWNER_3,
+                        { from: TOKEN_OWNER_1 });
+                    res = await web3.eth.getTransactionReceipt(txHash);
+                });
+
+                it("should return same delegated user as delegated", async () => {
+                    await expect(mintableNft.getDelegated.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.equal(TOKEN_OWNER_3);
+                });
+
+                it("should emit delegation log", () => {
+                    const [delegationLog] = ABIDecoder.decodeLogs(res.logs);
+                    const logExpected =
+                        LogDelegation(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3);
+
+                    expect(delegationLog).to.deep.equal(logExpected);
+                })
+            });
+
+            describe("user clears set delegation", () => {
+                let res: Web3.TransactionReceipt;
+
+                before(async () => {
+                    const txHash = await mintableNft.delegate.sendTransactionAsync(NULL_ADDRESS,
+                        { from: TOKEN_OWNER_1 });
+                    res = await web3.eth.getTransactionReceipt(txHash);
+                });
+
+                it("should return newly delegated user as delegated", async () => {
+                    await expect(mintableNft.getDelegated.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.equal(NULL_ADDRESS);
+                });
+
+                it("should emit delegation log", () => {
+                    const [delegationLog] = ABIDecoder.decodeLogs(res.logs);
+                    const logExpected =
+                        LogDelegation(mintableNft.address, TOKEN_OWNER_1, NULL_ADDRESS);
+
+                    expect(delegationLog).to.deep.equal(logExpected);
+                })
+            });
+        });
+    })
+
     describe("#transferFrom()", () => {
         before(deployAndInitNft);
 
-        describe("user transfers token from owner w/o approval...", () => {
+        describe("user transfers token from owner w/o approval or delegation...", () => {
             it("should throw", async () => {
                 await expect(mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_2, TOKEN_OWNER_3,
                     TOKEN_ID_1, { from: TOKEN_OWNER_3 }))
@@ -571,6 +697,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                 });
             });
 
+            // TODO: Is this meant to be "... from owner to other user?"
             describe("...from other owner to himself", () => {
                 let res: Web3.TransactionReceipt;
                 let approvalLog: ABIDecoder.DecodedLog;
@@ -589,6 +716,91 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogApproval(mintableNft.address, TOKEN_OWNER_1, NULL_ADDRESS, TOKEN_ID_1);
 
                     expect(approvalLog).to.deep.equal(logExpected);
+                });
+
+                it("should emit transfer log", () => {
+                    const logExpected =
+                        LogTransfer(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3, TOKEN_ID_1);
+
+                    expect(transferLog).to.deep.equal(logExpected);
+                });
+
+                it("should belong to new owner", async () => {
+                    await expect(mintableNft.ownerOf.callAsync(TOKEN_ID_1))
+                        .to.eventually.equal(TOKEN_OWNER_3);
+                });
+
+                it("should update owners' token balances correctly", async () => {
+                    await expect(mintableNft.balanceOf.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.bignumber.equal(0);
+                    await expect(mintableNft.balanceOf.callAsync(TOKEN_OWNER_2))
+                        .to.eventually.bignumber.equal(1);
+                    await expect(mintableNft.balanceOf.callAsync(TOKEN_OWNER_3))
+                        .to.eventually.bignumber.equal(2);
+                });
+
+                it("should update owners' iterable token lists", async () => {
+                    // TOKEN_OWNER_1
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_1, new BigNumber.BigNumber(0)))
+                        .to.eventually.be.rejectedWith(INVALID_OPCODE);
+
+                    // TOKEN_OWNER_2
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_2, new BigNumber.BigNumber(0)))
+                        .to.eventually.bignumber.equal(TOKEN_ID_2);
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_2, new BigNumber.BigNumber(1)))
+                        .to.eventually.be.rejectedWith(INVALID_OPCODE);
+
+                    // TOKEN_OWNER_3
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(0)))
+                        .to.eventually.bignumber.equal(TOKEN_ID_3);
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(1)))
+                        .to.eventually.bignumber.equal(TOKEN_ID_1);
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(2)))
+                        .to.eventually.be.rejectedWith(INVALID_OPCODE);
+                });
+            });
+        });
+        
+        describe("user transfers token from owner, after being delegated,", () => {
+            before(async () => {
+                await mintableNft.delegate.sendTransactionAsync(TOKEN_OWNER_2,
+                    { from: TOKEN_OWNER_1 });
+            });
+
+            describe("from himself to himself", () => {
+                it("should throw", async () => {
+                    await expect(mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_2, TOKEN_OWNER_2,
+                        TOKEN_ID_2, { from: TOKEN_OWNER_2 }))
+                        .to.eventually.be.rejectedWith(REVERT_ERROR);
+                });
+            });
+
+            describe("...to null address", () => {
+                it("should throw", async () => {
+                    await expect(mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_1, NULL_ADDRESS,
+                        TOKEN_ID_1, { from: TOKEN_OWNER_2 }))
+                        .to.eventually.be.rejectedWith(REVERT_ERROR);
+                });
+            });
+
+            describe("...from owner to other user", () => {
+                let res: Web3.TransactionReceipt;
+                let delegationLog: ABIDecoder.DecodedLog;
+                let transferLog: ABIDecoder.DecodedLog;
+
+                before(async () => {
+                    const txHash = await mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_1, TOKEN_OWNER_3,
+                        TOKEN_ID_1, { from: TOKEN_OWNER_2 });
+                    res = await web3.eth.getTransactionReceipt(txHash);
+
+                    [delegationLog, transferLog] = ABIDecoder.decodeLogs(res.logs);
+                });
+
+                it("should emit delegation clear log", () => {
+                    const logExpected =
+                        LogDelegation(mintableNft.address, TOKEN_OWNER_1, NULL_ADDRESS);
+
+                    expect(delegationLog).to.deep.equal(logExpected);
                 });
 
                 it("should emit transfer log", () => {

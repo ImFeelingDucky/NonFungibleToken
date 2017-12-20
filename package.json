@@ -28,7 +28,7 @@
     "@0xproject/types": "^0.1.0",
     "@0xproject/utils": "^0.1.0",
     "@types/bignumber.js": "^4.0.3",
-    "@types/chai": "^4.0.5",
+    "@types/chai": "^4.0.10",
     "@types/chai-as-promised": "^7.1.0",
     "@types/lodash": "^4.14.88",
     "@types/node": "^8.5.1",
@@ -40,7 +40,7 @@
     "ganache-cli": "^6.0.3",
     "solhint": "^1.1.9",
     "tslint": "^5.8.0",
-    "typescript": "^2.6.1",
+    "typescript": "^2.6.2",
     "web3": "0.19.0",
     "web3-typescript-typings": "^0.7.2"
   }

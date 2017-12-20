@@ -203,6 +203,69 @@ export class MintableNonFungibleTokenContract extends BaseContract {
             return result;
         },
     };
+    public getDelegated = {
+        async callAsync(
+            _owner: string,
+            defaultBlock?: Web3.BlockParam,
+        ): Promise<string
+    > {
+            const self = this as MintableNonFungibleTokenContract;
+            const result = await promisify<string
+    >(
+                self.web3ContractInstance.getDelegated.call,
+                self.web3ContractInstance,
+            )(
+                _owner,
+            );
+            return result;
+        },
+    };
+    public delegate = {
+        async sendTransactionAsync(
+            _to: string,
+            txData: TxData = {},
+        ): Promise<string> {
+            const self = this as MintableNonFungibleTokenContract;
+            const txDataWithDefaults = await self.applyDefaultsToTxDataAsync(
+                txData,
+                self.delegate.estimateGasAsync.bind(
+                    self,
+                    _to,
+                ),
+            );
+            const txHash = await promisify<string>(
+                self.web3ContractInstance.delegate, self.web3ContractInstance,
+            )(
+                _to,
+                txDataWithDefaults,
+            );
+            return txHash;
+        },
+        async estimateGasAsync(
+            _to: string,
+            txData: TxData = {},
+        ): Promise<number> {
+            const self = this as MintableNonFungibleTokenContract;
+            const txDataWithDefaults = await self.applyDefaultsToTxDataAsync(
+                txData,
+            );
+            const gas = await promisify<number>(
+                self.web3ContractInstance.delegate.estimateGas, self.web3ContractInstance,
+            )(
+                _to,
+                txDataWithDefaults,
+            );
+            return gas;
+        },
+        getABIEncodedTransactionData(
+            _to: string,
+            txData: TxData = {},
+        ): string {
+            const self = this as MintableNonFungibleTokenContract;
+            const abiEncodedTransactionData = self.web3ContractInstance.delegate.getData();
+            return abiEncodedTransactionData;
+        },
+    };
     public ownerOf = {
         async callAsync(
             _tokenId: BigNumber,

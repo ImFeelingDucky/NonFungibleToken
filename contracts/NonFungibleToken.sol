@@ -127,7 +127,7 @@ contract NonFungibleToken is DetailedERC721 {
         if (ownerToDelegatedAddress[msg.sender] != address(0) ||
                 _to != address(0)) {
             ownerToDelegatedAddress[msg.sender] = _to;
-            Approval(msg.sender, _to);
+            Delegation(msg.sender, _to);
         }
     }
 
@@ -181,6 +181,14 @@ contract NonFungibleToken is DetailedERC721 {
         returns (address _approved)
     {
         return tokenIdToApprovedAddress[_tokenId];
+    }
+
+    function getDelegated(address _owner)
+        public
+        view
+        returns (address _delegated)
+    {
+        return ownerToDelegatedAddress[_owner];
     }
 
     function _transfer(address _from, address _to, uint _tokenId)
