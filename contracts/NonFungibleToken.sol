@@ -22,9 +22,6 @@ contract NonFungibleToken is DetailedERC721 {
     uint public numTokensTotal;
 
     mapping(uint => address) internal tokenIdToOwner;
-    // Unlike ERC20, a token in this implementation can only have one approved address
-    // at one time. ERC721 specifies this, but perhaps we should allow tokens to have
-    // multiple approved addresses?
     mapping(uint => address) internal tokenIdToApprovedAddress;
     mapping(uint => string) internal tokenIdToMetadata;
     mapping(address => uint[]) internal ownerToTokensOwned;
@@ -116,7 +113,7 @@ contract NonFungibleToken is DetailedERC721 {
     }
 
     /* 
-    * Express an authorisation for a third-party to transact with any of our NFTs.
+    * Authorise a third-party to transact any of our NFTs.
     * 
     */
     function delegate(address _to)
@@ -131,6 +128,12 @@ contract NonFungibleToken is DetailedERC721 {
         }
     }
 
+    /*
+    * Transfer an NFT, with its owner's permission, to another address.
+    * 
+    * NOTE: Does this need to include the owner's address? The owner is implied
+    * by the tokenId, as each tokenId can have only one owner.
+    */
     function transferFrom(address _from, address _to, uint _tokenId)
         public
         onlyExtantToken(_tokenId)
@@ -199,14 +202,45 @@ contract NonFungibleToken is DetailedERC721 {
         _clearTokenApproval(_tokenId);
         _removeTokenFromOwnersList(_from, _tokenId);
         _addTokenToOwnersList(_to, _tokenId);
+
+        /* TEST 1
+        // _clearTokenApproval(_tokenId);
+        _removeTokenFromOwnersList(_from, _tokenId);
+        _addTokenToOwnersList(_to, _tokenId);
+        before all hook: VM Exception while processing transaction: revert
+        before all hook: VM Exception while processing transaction: revert
+        */
+
+        /* TEST 2
+        _clearTokenApproval(_tokenId);
+        // _removeTokenFromOwnersList(_from, _tokenId);
+        _addTokenToOwnersList(_to, _tokenId);
+        before all hook: VM Exception while processing transaction: revert
+        before all hook: VM Exception while processing transaction: revert
+        */
+
+        /* TEST 3
+        _clearTokenApproval(_tokenId);
+        _removeTokenFromOwnersList(_from, _tokenId);
+        // _addTokenToOwnersList(_to, _tokenId);
+        before all hook: invalid opcode
+        before all hook: invalid opcode
+        */
+
+        /* TEST 4
+        _clearTokenApproval(_tokenId);
+        // _removeTokenFromOwnersList(_from, _tokenId);
+        // _addTokenToOwnersList(_to, _tokenId);
+        before all hook: doesn't throw
+        before all hook: doesn't throw
+        */
+
         Transfer(_from, _to, _tokenId);
     }
 
     function _clearTokenApproval(uint _tokenId)
         internal
     {
-        // As per ERC721, `Approval` should not be emitted if the approved address is
-        // set to zero when it was previously also zero
         if (tokenIdToApprovedAddress[_tokenId] != address(0)) {
             tokenIdToApprovedAddress[_tokenId] = address(0);
             Approval(tokenIdToOwner[_tokenId], 0, _tokenId);
