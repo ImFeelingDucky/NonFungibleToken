@@ -13,6 +13,7 @@ contract ERC721 {
     function balanceOf(address _owner) public view returns (uint256 _balance);
     function ownerOf(uint _tokenId) public view returns (address _owner);
     function approve(address _to, uint _tokenId) public;
+    function getApproved(uint _tokenId) public view returns (address _approved);
     function transferFrom(address _from, address _to, uint _tokenId) public;
     function transfer(address _to, uint _tokenId) public;
     function implementsERC721() public view returns (bool _implementsERC721);
