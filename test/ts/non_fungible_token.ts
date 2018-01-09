@@ -69,7 +69,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
             .sendTransactionAsync(TOKEN_OWNER_2, TOKEN_ID_2, METADATA_STRING_2);
         await mintableNft.mint
             .sendTransactionAsync(TOKEN_OWNER_3, TOKEN_ID_3, METADATA_STRING_3);
-    }
+    };
 
     before(deployNft);
 
@@ -145,7 +145,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
             await expect(mintableNft.tokenOfOwnerByIndex
                 .callAsync(TOKEN_OWNER_2, new BigNumber.BigNumber(1)))
                 .to.eventually.be.rejectedWith(INVALID_OPCODE);
-                await expect(mintableNft.tokenOfOwnerByIndex
+            await expect(mintableNft.tokenOfOwnerByIndex
                     .callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(1)))
                     .to.eventually.be.rejectedWith(INVALID_OPCODE);
         });
@@ -315,7 +315,6 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
             });
         });
 
-
         describe("user transfers token with outstanding approval", () => {
             let res: Web3.TransactionReceipt;
             let approvalLog: ABIDecoder.DecodedLog;
@@ -456,7 +455,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogApproval(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_2, TOKEN_ID_1);
 
                     expect(approvalLog).to.deep.equal(logExpected);
-                })
+                });
             });
 
             describe("user changes token approval", () => {
@@ -479,7 +478,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogApproval(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3, TOKEN_ID_1);
 
                     expect(approvalLog).to.deep.equal(logExpected);
-                })
+                });
             });
 
             describe("user reaffirms approval", () => {
@@ -502,7 +501,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogApproval(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3, TOKEN_ID_1);
 
                     expect(approvalLog).to.deep.equal(logExpected);
-                })
+                });
             });
 
             describe("user clears set approval", () => {
@@ -525,12 +524,12 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogApproval(mintableNft.address, TOKEN_OWNER_1, NULL_ADDRESS, TOKEN_ID_1);
 
                     expect(approvalLog).to.deep.equal(logExpected);
-                })
+                });
             });
         });
     });
 
-    describe('#delegate()', () => {
+    describe("#delegate()", () => {
         before(deployAndInitNft);
 
         describe("user delegates himself", () => {
@@ -582,7 +581,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogDelegation(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_2);
 
                     expect(delegationLog).to.deep.equal(logExpected);
-                })
+                });
             });
 
             describe("user changes delegated", () => {
@@ -605,7 +604,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogDelegation(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3);
 
                     expect(delegationLog).to.deep.equal(logExpected);
-                })
+                });
             });
 
             describe("user reaffirms delegation", () => {
@@ -628,7 +627,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogDelegation(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3);
 
                     expect(delegationLog).to.deep.equal(logExpected);
-                })
+                });
             });
 
             describe("user clears set delegation", () => {
@@ -651,10 +650,10 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                         LogDelegation(mintableNft.address, TOKEN_OWNER_1, NULL_ADDRESS);
 
                     expect(delegationLog).to.deep.equal(logExpected);
-                })
+                });
             });
         });
-    })
+    });
 
     describe("#transferFrom()", () => {
         before(deployAndInitNft);
@@ -760,19 +759,11 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                 });
             });
         });
-        
+
         describe("user transfers token from owner, after being delegated,", () => {
             before(async () => {
                 await mintableNft.delegate.sendTransactionAsync(TOKEN_OWNER_2,
                     { from: TOKEN_OWNER_1 });
-            });
-
-            describe("from himself to himself", () => {
-                it("should throw", async () => {
-                    await expect(mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_2, TOKEN_OWNER_2,
-                        TOKEN_ID_2, { from: TOKEN_OWNER_2 }))
-                        .to.eventually.be.rejectedWith(REVERT_ERROR);
-                });
             });
 
             describe("to null address", () => {
@@ -783,7 +774,69 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
                 });
             });
 
-            describe("from owner to other user", () => {
+            describe("to himself", () => {
+                let res: Web3.TransactionReceipt;
+                let delegationLog: ABIDecoder.DecodedLog;
+                let transferLog: ABIDecoder.DecodedLog;
+
+                before(async () => {
+                    const txHash = await mintableNft.transferFrom.sendTransactionAsync(TOKEN_OWNER_1, TOKEN_OWNER_2,
+                        TOKEN_ID_1, { from: TOKEN_OWNER_2 });
+                    res = await web3.eth.getTransactionReceipt(txHash);
+
+                    [delegationLog, transferLog] = ABIDecoder.decodeLogs(res.logs);
+                });
+
+                it("should emit delegation clear log", () => {
+                    const logExpected =
+                        LogDelegation(mintableNft.address, TOKEN_OWNER_1, NULL_ADDRESS);
+
+                    expect(delegationLog).to.deep.equal(logExpected);
+                });
+
+                it("should emit transfer log", () => {
+                    const logExpected =
+                        LogTransfer(mintableNft.address, TOKEN_OWNER_1, TOKEN_OWNER_3, TOKEN_ID_1);
+
+                    expect(transferLog).to.deep.equal(logExpected);
+                });
+
+                it("should belong to new owner", async () => {
+                    await expect(mintableNft.ownerOf.callAsync(TOKEN_ID_1))
+                        .to.eventually.equal(TOKEN_OWNER_3);
+                });
+
+                it("should update owners' token balances correctly", async () => {
+                    await expect(mintableNft.balanceOf.callAsync(TOKEN_OWNER_1))
+                        .to.eventually.bignumber.equal(0);
+                    await expect(mintableNft.balanceOf.callAsync(TOKEN_OWNER_2))
+                        .to.eventually.bignumber.equal(1);
+                    await expect(mintableNft.balanceOf.callAsync(TOKEN_OWNER_3))
+                        .to.eventually.bignumber.equal(2);
+                });
+
+                it("should update owners' iterable token lists", async () => {
+                    // TOKEN_OWNER_1
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_1, new BigNumber.BigNumber(0)))
+                        .to.eventually.be.rejectedWith(INVALID_OPCODE);
+
+                    // TOKEN_OWNER_2
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_2, new BigNumber.BigNumber(0)))
+                        .to.eventually.bignumber.equal(TOKEN_ID_2);
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_2, new BigNumber.BigNumber(1)))
+                        .to.eventually.be.rejectedWith(INVALID_OPCODE);
+
+                    // TOKEN_OWNER_3
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(0)))
+                        .to.eventually.bignumber.equal(TOKEN_ID_3);
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(1)))
+                        .to.eventually.bignumber.equal(TOKEN_ID_1);
+                    await expect(mintableNft.tokenOfOwnerByIndex.callAsync(TOKEN_OWNER_3, new BigNumber.BigNumber(2)))
+                        .to.eventually.be.rejectedWith(INVALID_OPCODE);
+                });
+            });
+
+            describe("to other user", () => {
                 let res: Web3.TransactionReceipt;
                 let delegationLog: ABIDecoder.DecodedLog;
                 let transferLog: ABIDecoder.DecodedLog;
