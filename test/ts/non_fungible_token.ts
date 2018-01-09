@@ -743,7 +743,7 @@ contract("Non-Fungible Token", (ACCOUNTS) => {
             });
         });
 
-        describe("user transfers token from owner, after being delegated,", () => {
+        describe("delegated user transfers token from owner", () => {
             before(async () => {
                 await mintableNft.delegate.sendTransactionAsync(TOKEN_OWNER_2,
                     { from: TOKEN_OWNER_1 });

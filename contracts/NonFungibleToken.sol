@@ -144,12 +144,10 @@ contract NonFungibleToken is DetailedERC721 {
 
         _clearApprovalAndTransfer(_from, _to, _tokenId);
 
-        // TODO: Check this correctly prevents emitting Approvals when
+        // TODO: Prevent emitting Approvals when just
         // re-affirming approval to the zero address, which is now possible
-        // in transferFrom because of delegation
-        if (getApproved(_tokenId) != address(0)) {
-            Approval(_from, 0, _tokenId);
-        }
+        // because a delegated address can also `transferFrom`
+        Approval(_from, 0, _tokenId);
         Transfer(_from, _to, _tokenId);
     }
 
